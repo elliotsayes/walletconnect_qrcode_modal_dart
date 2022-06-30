@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -20,9 +22,9 @@ class ModalWalletIOSPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: getIOSWallets(),
-      builder: (context, AsyncSnapshot<List<Wallet>> walletData) {
+    return StreamBuilder<List<Wallet>>(
+      stream: getIOSWallets(),
+      builder: (context, AsyncSnapshot walletData) {
         if (walletData.hasData) {
           return Column(
             children: [
@@ -111,22 +113,15 @@ class ModalWalletIOSPage extends StatelessWidget {
     );
   }
 
-  Future<List<Wallet>> getIOSWallets() {
+  Stream<List<Wallet>> getIOSWallets() async* {
     Future<bool> shouldShow(wallet) async =>
         await Utils.openableLink(wallet.mobile.universal) ||
         await Utils.openableLink(wallet.mobile.native) ||
         await Utils.openableLink(wallet.app.ios);
 
-    return store.load().then(
-      (wallets) async {
-        final filter = <Wallet>[];
-        for (final wallet in wallets) {
-          if (await shouldShow(wallet)) {
-            filter.add(wallet);
-          }
-        }
-        return filter;
-      },
-    );
+    final accum = <Wallet>[];
+    await for (final wallet in store.load()) {
+      if (await shouldShow(wallet)) yield accum..add(wallet);
+    }
   }
 }

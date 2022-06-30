@@ -20,9 +20,9 @@ class ModalWalletDesktopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: getDesktopWallets(),
-      builder: (context, AsyncSnapshot<List<Wallet>> walletData) {
+    return StreamBuilder<List<Wallet>>(
+      stream: getDesktopWallets(),
+      builder: (context, AsyncSnapshot walletData) {
         if (walletData.hasData) {
           return Column(
             children: [
@@ -111,15 +111,14 @@ class ModalWalletDesktopPage extends StatelessWidget {
     );
   }
 
-  Future<List<Wallet>> getDesktopWallets() {
-    return store.load().then(
-          (wallets) => wallets
-              .where(
-                (wallet) =>
-                    Utils.linkHasContent(wallet.desktop.universal) ||
-                    Utils.linkHasContent(wallet.desktop.native),
-              )
-              .toList(),
-        );
+  Stream<List<Wallet>> getDesktopWallets() async* {
+    bool shouldShow(wallet) =>
+        Utils.linkHasContent(wallet.desktop.universal) ||
+        Utils.linkHasContent(wallet.desktop.native);
+
+    final accum = <Wallet>[];
+    await for (final wallet in store.load()) {
+      if (shouldShow(wallet)) yield accum..add(wallet);
+    }
   }
 }
